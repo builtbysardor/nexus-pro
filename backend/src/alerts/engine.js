@@ -128,4 +128,23 @@ const resolve = (id) => {
   return a;
 };
 
-module.exports = { evaluate, getAlerts, acknowledge, resolve, THRESHOLDS };
+const metricKeyMap = {
+  'CPU Usage':       'cpu',
+  'RAM Usage':       'ram',
+  'Disk Usage':      'disk',
+  'CPU Temperature': 'temperature',
+  'Latency':         'latency',
+};
+
+const updateThresholds = (incoming) => {
+  if (!Array.isArray(incoming)) return;
+  incoming.forEach(t => {
+    const key = metricKeyMap[t.metric];
+    if (key && THRESHOLDS[key]) {
+      if (t.warning  != null) THRESHOLDS[key].warning  = t.warning;
+      if (t.critical != null) THRESHOLDS[key].critical = t.critical;
+    }
+  });
+};
+
+module.exports = { evaluate, getAlerts, acknowledge, resolve, THRESHOLDS, updateThresholds };

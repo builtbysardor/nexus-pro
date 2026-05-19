@@ -5,8 +5,9 @@
  */
 
 import type {
-  Alert, AlertThreshold, Host, LogEntry, Service, SystemMetrics, ChartData, NetworkInterface,
+  Alert, AlertThreshold, Host, LogEntry, Service, SystemMetrics, ChartData, NetworkInterface, Settings,
 } from '@/types';
+import { getToken } from '@/lib/auth';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
@@ -169,7 +170,7 @@ export function historyToChart(h: BackendHistory): ChartData {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}), ...(init?.headers ?? {}) },
     cache: 'no-store',
   });
   if (!res.ok) {
@@ -202,6 +203,15 @@ export const api = {
     request<Host>(`/api/hosts/${id}/maintenance`, { method: 'PATCH' }),
 
   getThresholds: () => request<AlertThreshold[]>('/api/alerts/thresholds'),
+
+  getSettings: () => request<Settings>('/api/settings'),
+
+  saveSettings: (s: Partial<Settings>) =>
+    request<Settings>('/api/settings', {
+      method: 'PUT',
+      body: JSON.stringify(s),
+      headers: { 'x-api-key': process.env.NEXT_PUBLIC_API_KEY ?? '' },
+    }),
 };
 
 // Re-export the base URL for places that compose URLs directly.

@@ -61,6 +61,12 @@ app.use(rateLimit({
   message: { error: 'Too many requests' },
 }));
 
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./lib/swagger');
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: 'Nexus Pro API',
+}));
+
 app.use('/api', routes);
 app.use((_req, res) => res.status(404).json({ error: 'Endpoint not found' }));
 app.use((err, _req, res, _next) => {

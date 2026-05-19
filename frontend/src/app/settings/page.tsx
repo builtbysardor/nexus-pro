@@ -22,17 +22,38 @@ const DEFAULT: Settings = {
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>(DEFAULT);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getThresholds().then(thresholds => {
-      setSettings(s => ({ ...s, thresholds }));
+    api.getSettings().then(data => {
+      setSettings(s => ({ ...s, ...data }));
     }).catch(() => { /* keep defaults */ });
   }, []);
-  const [saved, setSaved] = useState(false);
 
-  const save = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api.saveSettings(settings);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save failed');
+      setTimeout(() => setError(null), 2000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleMaintenance = async () => {
+    const next = !settings.maintenanceMode;
+    setSettings(s => ({ ...s, maintenanceMode: next }));
+    try {
+      await api.saveSettings({ maintenanceMode: next });
+    } catch {
+      setSettings(s => ({ ...s, maintenanceMode: !next }));
+    }
   };
 
   const updateThreshold = (idx: number, key: 'warning' | 'critical', val: number) => {
@@ -54,16 +75,24 @@ export default function SettingsPage() {
             right={
               <button
                 onClick={save}
-                className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all', saved
+                disabled={saving}
+                className={cn('flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed', saved
                   ? 'bg-emerald-400/20 text-emerald-400 border border-emerald-400/30'
                   : 'bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600'
                 )}
               >
                 <Save className="w-4 h-4" />
-                {saved ? 'Saved!' : 'Save Changes'}
+                {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Changes'}
               </button>
             }
           />
+
+          {error && (
+            <div className="flex items-center gap-2 text-sm text-red-400 bg-red-400/5 border border-red-400/20 rounded-lg px-4 py-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              {error}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Thresholds */}
@@ -131,7 +160,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <button
-                    onClick={() => setSettings(s => ({ ...s, maintenanceMode: !s.maintenanceMode }))}
+                    onClick={toggleMaintenance}
                     className={cn('w-11 h-6 rounded-full transition-all relative', settings.maintenanceMode ? 'bg-sky-400' : 'bg-slate-700')}
                   >
                     <span className={cn('absolute top-1 w-4 h-4 rounded-full bg-white transition-all', settings.maintenanceMode ? 'left-6' : 'left-1')} />
